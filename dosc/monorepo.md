@@ -203,3 +203,63 @@ Monorepo项目的本地开发流程需要重新设计，公共组件的构建、
 通过编写node脚本，实现更为复杂的构建、部署命令：
 - 通过 [Commander](https://www.bilibili.com/video/BV1PB4y1j7DY?p=4&vd_source=afd31e4d68a06e5f526b5fa7c43294ba) + [Inquirer](https://www.bilibili.com/video/BV1PB4y1j7DY?p=5&vd_source=afd31e4d68a06e5f526b5fa7c43294ba) 配合完成脚本，同时提供直接执行的能力。
 - 直接通过脚本，调用[node/child-process](https://www.nodejs.com.cn/api/child_process.html)执行子应用中的脚本命令。
+
+### 机器部署缓存上传与获取
+由于缓存存储于本地，如果想要在部署机器时使用缓存需要在`build`命令脚本中添加缓存的上传与下载。
+使用`npx turbo run build --dry=json`可以获取到本次构建的hash值，通过下载对应hash值文件后进行打包命令，打包构建后也可根据未命中的hash上传对应的新构建缓存；
+
+
+### 公共组件开发、发布
+-- 待更新（changeset、组件构建）
+
+### 新项目迁移
+-- 待更新（复制脚本）
+
+## 整体结构
+```js
+|-- .changeset // 版本控制
+|-- .husky // 代码提交校验 - git hooks
+|-- apps // 子应用存储目录
+  |-- app1
+  |-- app2
+|-- dockerfiles // 发布用 docker 文件
+|-- packages // 公共组件
+  |-- package1
+  |-- package2
+|-- scripts // 执行命令脚本
+  |-- build.ts
+  |-- index.ts
+  |-- publish.ts
+|-- .eslintignore // eslint config
+|-- .eslintrc.js
+|-- .npmrc // npm config
+|-- .prettierrc.js // prettier config
+|-- build.sh // build scripts
+|-- tsconfig.json // ts config
+|-- turbo.json // turbo config
+|-- package.json
+|-- pnpm-lock.yaml
+|-- pnpm-workspace.yaml
+|-- README.md
+```
+
+
+## 效果对比
+
+|--|开发&构建|部署|
+|--|--|--|
+|架构升级前|- 单个组件开发启动耗时40s，同时开发多个耗时越长<br/>- 组件需要提前构建 30-60s | - 组件本地先发包耗时2min <br/> - 业务项目部署4min|
+|架构升级后|- 组件本地启动秒级耗时<br/>- 源码引入无需本地构建<br/>- 组件链条不需要link| - 组件无需本地发包<br/>- 业务项目命中缓存部署时间更短|
+|提效总结|-组件开发成本降低100%|发版部署效率提升50%|
+
+## 问题总结
+
+1. 由于构建输出文件为一个文件夹，构建后部署至同一台机器场景下，如果出现：**10号上线了a需求修改了apps/a项目，11号上线了b需求修改了apps/b项目**，**当a项目出现问题需要回滚时**，我们很难做到不修改b项目的情况下回滚a需求的上线（通过`git revert`可以实现，但是有可能存在大量冲突)。所以我们需要独立的构建部署回滚流程。
+
+2. 迁移成本
+  
+      · 通过使用一些 diff 的方法，给迁移进来的项目指出一些需要版本 diff 的点**降低迁移成本**。
+
+      · 通过编写`迁移脚本`帮助用户只需要输入git仓库，等信息完成项目接入（脚本只用于简单的复制粘贴） 
+
+3. 通用脚本的提取，方便多个monorepo项目迁移。提取出公共的例如： monorepo 的build脚本、缓存上传脚本等。
